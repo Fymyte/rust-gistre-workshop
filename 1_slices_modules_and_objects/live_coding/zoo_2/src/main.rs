@@ -19,7 +19,7 @@ fn main() {
         arthur.scream();
     }
 
-    bob.take_care(&[&mut arthur, &mut an_ape]);
+    bob.take_care(&mut [&mut arthur, &mut an_ape]);
 
     let skunky = animal::Skunk;
     skunky.stink();
