@@ -161,6 +161,31 @@ mod tests {
     }
 
     #[test]
+    fn add_account_inner_block() {
+        let mut universal_bank = Bank::new();
+        let id1 = Uuid::new_v4();
+        let id2 = Uuid::new_v4();
+        {
+            let account1 = Account::with_id::<Euro>("account1", &id1);
+            let account2 = Account::with_id::<Dollar>("account2", &id2);
+
+            universal_bank.add_account(account1);
+            universal_bank.add_account(account2);
+        }
+
+        assert!(universal_bank.get_account(&id1).is_ok());
+        assert_eq!(
+            universal_bank.get_account(&id1).unwrap().get_name(),
+            "account1"
+        );
+        assert!(universal_bank.get_account(&id2).is_ok());
+        assert_eq!(
+            universal_bank.get_account(&id2).unwrap().get_name(),
+            "account2"
+        );
+    }
+
+    #[test]
     fn get_fake_account() {
         let mut banck = Bank::new();
         let id = Uuid::new_v4();
