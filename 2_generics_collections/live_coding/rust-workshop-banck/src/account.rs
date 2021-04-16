@@ -2,43 +2,43 @@ use super::money::*;
 use uuid::Uuid;
 
 /// Represent an account with `T` as its currency
-pub struct Account<T> {
+pub struct Account<'a> {
     /// The unique id of this account
     id: Uuid,
     /// The name of the owner of this account
     name: String,
     /// The amount of money storred in this account,
     /// in the currency of this account
-    money: T,
+    money: Box<dyn Money + 'a>,
 }
 
 /// Object representation of an account.
 /// Every transactions should be done using dollar exchange_rate (1).
 /// What tha means is the account assume that the amount given in argument
 /// is always in dollar, and the returned value is also in dollar.
-impl<T: Money> Account<T> {
+impl<'a> Account<'a> {
     /// Create a new account
     ///
     /// # Argument
     /// * `name` - the name of the owner for this new account
-    pub fn new(name: &str) -> Self {
-        Self::with_id(name, &Uuid::new_v4())
+    pub fn new<T: Money + 'a>(name: &str) -> Self {
+        Self::with_id::<T>(name, &Uuid::new_v4())
     }
     /// Create a new account with a given id
     ///
     /// # Arguments
     /// * `name` - the name of the owner for this new account
     /// * `id` - the id which the new account will be using
-    pub fn with_id(name: &str, id: &Uuid) -> Self {
-        Self::with_amount_and_id(name, 0., id)
+    pub fn with_id<T: Money + 'a>(name: &str, id: &Uuid) -> Self {
+        Self::with_amount_and_id::<T>(name, 0., id)
     }
     /// Create a new account with a given amount of money
     ///
     /// # Arguments
     /// * `name` - the name of the owner for this new account
     /// * `money` - an amount of money which will be converted into the currency of this account
-    pub fn with_amount(name: &str, money: f64) -> Self {
-        Self::with_amount_and_id(name, money, &Uuid::new_v4())
+    pub fn with_amount<T: Money + 'a>(name: &str, money: f64) -> Self {
+        Self::with_amount_and_id::<T>(name, money, &Uuid::new_v4())
     }
     /// Create a new account with a given id and amount of money
     ///
@@ -46,11 +46,11 @@ impl<T: Money> Account<T> {
     /// * `name` - the name of the owner for this new account
     /// * `id` - the id which the new account will be using
     /// * `money` - an amount of money which will be converted into the currency of this account
-    pub fn with_amount_and_id(name: &str, money: f64, id: &Uuid) -> Self {
+    pub fn with_amount_and_id<T: Money + 'a>(name: &str, money: f64, id: &Uuid) -> Self {
         Self {
             id: *id,
             name: name.to_string(),
-            money: T::from(money * T::exchange_rate()),
+            money: Box::new(T::from(T::exchange_rate() * money)),
         }
     }
 
@@ -74,7 +74,7 @@ impl<T: Money> Account<T> {
         &self.id
     }
 
-    /// Add the given amount of money into this account. 
+    /// Add the given amount of money into this account.
     /// The amount is assumed to be in dollar.
     ///
     /// # Arguments
@@ -108,7 +108,7 @@ mod account_tests {
     use super::*;
     #[test]
     fn create_only_name() {
-        let account = Account::<Euro>::new("account");
+        let account = Account::new::<Euro>("account");
         assert_eq!(account.get_value(), 0.);
         assert_eq!(account.get_name(), "account");
     }
@@ -116,16 +116,15 @@ mod account_tests {
     #[test]
     fn create_with_id() {
         let id = Uuid::new_v4();
-        let account = Account::<Euro>::with_id("account", &id);
+        let account = Account::with_id::<Euro>("account", &id);
         assert_eq!(*account.get_id(), id);
         assert_eq!(account.get_value(), 0.);
         assert_eq!(account.get_name(), "account");
-
     }
 
     #[test]
     fn transactions() {
-        let mut account = Account::<Euro>::new("account");
+        let mut account = Account::new::<Euro>("account");
         let pocket = account.retrieve_money(100.);
         assert_eq!(pocket, 100.);
         assert_eq!(account.get_value(), -100.);
@@ -138,7 +137,7 @@ mod account_tests {
 
     #[test]
     fn rename() {
-        let mut account = Account::<Euro>::new("account");
+        let mut account = Account::new::<Euro>("account");
         account.rename("new_name");
         assert_eq!(account.get_name(), "new_name");
     }

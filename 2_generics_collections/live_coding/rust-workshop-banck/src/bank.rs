@@ -2,7 +2,6 @@ use std::{collections::HashMap, fmt};
 use uuid::Uuid;
 
 use super::account::*;
-use super::money::*;
 
 #[derive(Debug, Clone)]
 pub struct NoSuchAccountError {
@@ -21,19 +20,19 @@ impl fmt::Display for NoSuchAccountError {
     }
 }
 
-pub struct Banck<T> {
-    accounts: HashMap<Uuid, Account<T>>,
+pub struct Bank<'a> {
+    accounts: HashMap<Uuid, Account<'a>>,
 }
 
-impl<T: Money> Banck<T> {
-    fn get_account_mut(
-        &mut self,
-        account_id: &Uuid,
-    ) -> Result<&mut Account<T>, NoSuchAccountError> {
-        self.accounts
-            .get_mut(account_id)
-            .ok_or(NoSuchAccountError::new(*account_id))
-    }
+impl<'a> Bank<'a> {
+    // fn get_account_mut(
+    //     &mut self,
+    //     account_id: &Uuid,
+    // ) -> Result<&'a mut Account, NoSuchAccountError> {
+    //     self.accounts
+    //         .get_mut(account_id)
+    //         .ok_or(NoSuchAccountError::new(*account_id))
+    // }
 
     /// Retrieve the account with the given id
     ///
@@ -42,7 +41,7 @@ impl<T: Money> Banck<T> {
     ///
     /// # Returns
     /// A result which contains the account if it was found is this banck, an error otherwise.
-    pub fn get_account(&self, account_id: &Uuid) -> Result<&Account<T>, NoSuchAccountError> {
+    pub fn get_account(&self, account_id: &Uuid) -> Result<&Account, NoSuchAccountError> {
         self.accounts
             .get(account_id)
             .ok_or(NoSuchAccountError::new(*account_id))
@@ -62,10 +61,8 @@ impl<T: Money> Banck<T> {
     ///
     /// # Returns
     /// The id of the added account.
-    pub fn add_account(&mut self, account: Account<T>) -> Uuid {
-        let id = *account.get_id();
+    pub fn add_account<'b: 'a>(&mut self, account: Account<'b>) {
         self.accounts.insert(*account.get_id(), account);
-        id
     }
 
     /// Add money to the given account.
@@ -82,7 +79,10 @@ impl<T: Money> Banck<T> {
         account_id: &Uuid,
         amount: f64,
     ) -> Result<(), NoSuchAccountError> {
-        Ok(self.get_account_mut(account_id)?.add_money(amount))
+        self.accounts
+            .get_mut(account_id)
+            .map(|x| x.add_money(amount))
+            .ok_or(NoSuchAccountError::new(*account_id))
     }
 
     /// Retrieve money from the given account.
@@ -99,7 +99,10 @@ impl<T: Money> Banck<T> {
         account_id: &Uuid,
         amount: f64,
     ) -> Result<f64, NoSuchAccountError> {
-        Ok(self.get_account_mut(account_id)?.retrieve_money(amount))
+        self.accounts
+            .get_mut(account_id)
+            .map(|x| x.retrieve_money(amount))
+            .ok_or(NoSuchAccountError::new(*account_id))
     }
 
     /// Get the amount of money storred in the given account.
@@ -122,28 +125,46 @@ impl<T: Money> Banck<T> {
         account_id: &Uuid,
         new_name: &str,
     ) -> Result<(), NoSuchAccountError> {
-        Ok(self.get_account_mut(account_id)?.rename(new_name))
+        self.accounts
+            .get_mut(account_id)
+            .map(|x| x.rename(new_name))
+            .ok_or(NoSuchAccountError::new(*account_id))
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use super::super::money::*;
     use super::*;
     #[test]
     fn add_account() {
-        let mut banck: Banck<Euro> = Banck::new();
+        let mut banck = Bank::new();
         let id = Uuid::new_v4();
-        banck.add_account(Account::with_id("account", &id));
+        banck.add_account(Account::with_id::<Euro>("account", &id));
 
         assert!(banck.get_account(&id).is_ok());
-        assert_eq!(banck.get_account_mut(&id).unwrap().get_name(), "account");
+        assert_eq!(banck.get_account(&id).unwrap().get_name(), "account");
+    }
+
+    #[test]
+    fn add_multiple_account() {
+        let mut bank = Bank::new();
+        let id = Uuid::new_v4();
+        let id2 = Uuid::new_v4();
+        bank.add_account(Account::with_id::<Euro>("account1", &id));
+        bank.add_account(Account::with_id::<Dollar>("account2", &id2));
+
+        assert!(bank.get_account(&id).is_ok());
+        assert_eq!(bank.get_account(&id).unwrap().get_name(), "account1");
+        assert!(bank.get_account(&id2).is_ok());
+        assert_eq!(bank.get_account(&id2).unwrap().get_name(), "account2");
     }
 
     #[test]
     fn get_fake_account() {
-        let mut banck: Banck<Dollar> = Banck::new();
+        let mut banck = Bank::new();
         let id = Uuid::new_v4();
-        banck.add_account(Account::with_id("account", &id));
+        banck.add_account(Account::with_id::<Euro>("account", &id));
 
         assert!(banck.get_account(&Uuid::new_v4()).is_err());
         let id = Uuid::new_v4();
@@ -152,25 +173,40 @@ mod tests {
 
     #[test]
     fn add_money_real_account() {
-        let mut banck: Banck<Ouguiya> = Banck::new();
+        let mut banck = Bank::new();
         let id = Uuid::new_v4();
-        banck.add_account(Account::with_id("account", &id));
+        banck.add_account(Account::with_id::<Dollar>("account", &id));
 
         assert!(banck.add_account_money(&id, 10.).is_ok());
         assert_eq!(banck.get_account_money(&id).unwrap(), 10.);
     }
 
     #[test]
+    fn add_money_multiple_account() {
+        let mut universal_bank = Bank::new();
+        let id = Uuid::new_v4();
+        let id2 = Uuid::new_v4();
+        universal_bank.add_account(Account::with_id::<Euro>("account1", &id));
+        universal_bank.add_account(Account::with_id::<Dollar>("account2", &id2));
+
+        assert!(universal_bank.add_account_money(&id, 100.).is_ok());
+        assert_eq!(universal_bank.get_account_money(&id).unwrap(), 100.);
+
+        assert!(universal_bank.add_account_money(&id2, 10.).is_ok());
+        assert_eq!(universal_bank.get_account_money(&id2).unwrap(), 10.);
+    }
+
+    #[test]
     fn add_money_fake_account() {
-        let mut banck = Banck::<Euro>::new();
+        let mut banck = Bank::new();
         assert!(banck.add_account_money(&Uuid::new_v4(), 10.).is_err());
     }
 
     #[test]
     fn retrieve_money_real_account() {
-        let mut banck = Banck::<Euro>::new();
+        let mut banck = Bank::new();
         let id = Uuid::new_v4();
-        banck.add_account(Account::with_id("account", &id));
+        banck.add_account(Account::with_id::<Euro>("account", &id));
 
         assert!(banck.add_account_money(&id, 10.).is_ok());
         assert_eq!(banck.retrieve_account_money(&id, 5.).unwrap(), 5.);
@@ -179,17 +215,15 @@ mod tests {
 
     #[test]
     fn retrieve_money_fake_account() {
-        let mut banck: Banck<Dollar> = Banck::new();
-        assert!(banck
-            .retrieve_account_money(&Uuid::new_v4(), 10.)
-            .is_err());
+        let mut banck = Bank::new();
+        assert!(banck.retrieve_account_money(&Uuid::new_v4(), 10.).is_err());
     }
 
     #[test]
     fn rename_real_account() {
-        let mut banck: Banck<Dollar> = Banck::new();
+        let mut banck = Bank::new();
         let id = Uuid::new_v4();
-        banck.add_account(Account::with_id("account", &id));
+        banck.add_account(Account::with_id::<Euro>("account", &id));
 
         assert!(banck.rename_account(&id, "hello").is_ok());
         assert_eq!(banck.get_account(&id).unwrap().get_name(), "hello");
@@ -197,7 +231,7 @@ mod tests {
 
     #[test]
     fn rename_fake_account() {
-        let mut banck: Banck<Ouguiya> = Banck::new();
+        let mut banck = Bank::new();
         assert!(banck.rename_account(&Uuid::new_v4(), "hello").is_err());
     }
 }

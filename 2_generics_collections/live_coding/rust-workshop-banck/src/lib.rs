@@ -1,3 +1,3 @@
 pub mod account;
-pub mod banck;
+pub mod bank;
 pub mod money;

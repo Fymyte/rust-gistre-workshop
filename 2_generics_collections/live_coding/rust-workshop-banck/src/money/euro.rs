@@ -34,10 +34,10 @@ impl Money for Euro {
     fn remove(&mut self, other: f64) {
         self.amount -= other / Self::exchange_rate();
     }
-}
-
-impl From<f64> for Euro {
+    
     fn from(other: f64) -> Self {
         Self::with_amount(other)
     }
+
 }
+
