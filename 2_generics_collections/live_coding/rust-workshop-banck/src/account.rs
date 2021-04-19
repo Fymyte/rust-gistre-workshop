@@ -2,26 +2,26 @@ use super::money::*;
 use uuid::Uuid;
 
 /// Represent an account with `T` as its currency
-pub struct Account {
+pub struct Account<'a> {
     /// The unique id of this account
     id: Uuid,
     /// The name of the owner of this account
     name: String,
     /// The amount of money storred in this account,
     /// in the currency of this account
-    money: Box<dyn Money>,
+    money: Box<dyn Money + 'a>,
 }
 
 /// Object representation of an account.
 /// Every transactions should be done using dollar exchange_rate (1).
 /// What tha means is the account assume that the amount given in argument
 /// is always in dollar, and the returned value is also in dollar.
-impl Account {
+impl<'a> Account<'a> {
     /// Create a new account
     ///
     /// # Argument
     /// * `name` - the name of the owner for this new account
-    pub fn new<T: Money + 'static>(name: &str) -> Self {
+    pub fn new<T: Money + 'a>(name: &str) -> Self {
         Self::with_id::<T>(name, &Uuid::new_v4())
     }
     /// Create a new account with a given id
@@ -29,7 +29,7 @@ impl Account {
     /// # Arguments
     /// * `name` - the name of the owner for this new account
     /// * `id` - the id which the new account will be using
-    pub fn with_id<T: Money + 'static>(name: &str, id: &Uuid) -> Self {
+    pub fn with_id<T: Money + 'a>(name: &str, id: &Uuid) -> Self {
         Self::with_amount_and_id::<T>(name, 0., id)
     }
     /// Create a new account with a given amount of money
@@ -37,7 +37,7 @@ impl Account {
     /// # Arguments
     /// * `name` - the name of the owner for this new account
     /// * `money` - an amount of money which will be converted into the currency of this account
-    pub fn with_amount<T: Money + 'static>(name: &str, money: f64) -> Self {
+    pub fn with_amount<T: Money + 'a>(name: &str, money: f64) -> Self {
         Self::with_amount_and_id::<T>(name, money, &Uuid::new_v4())
     }
     /// Create a new account with a given id and amount of money
@@ -46,7 +46,7 @@ impl Account {
     /// * `name` - the name of the owner for this new account
     /// * `id` - the id which the new account will be using
     /// * `money` - an amount of money which will be converted into the currency of this account
-    pub fn with_amount_and_id<T: Money + 'static>(name: &str, money: f64, id: &Uuid) -> Self {
+    pub fn with_amount_and_id<T: Money + 'a>(name: &str, money: f64, id: &Uuid) -> Self {
         Self {
             id: *id,
             name: name.to_string(),

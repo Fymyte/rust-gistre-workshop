@@ -20,11 +20,11 @@ impl fmt::Display for NoSuchAccountError {
     }
 }
 
-pub struct Bank {
-    accounts: HashMap<Uuid, Account>,
+pub struct Bank<'a> {
+    accounts: HashMap<Uuid, Account<'a>>,
 }
 
-impl Bank {
+impl<'a> Bank<'a> {
     // fn get_account_mut(
     //     &mut self,
     //     account_id: &Uuid,
@@ -61,7 +61,7 @@ impl Bank {
     ///
     /// # Returns
     /// The id of the added account.
-    pub fn add_account(&mut self, account: Account) {
+    pub fn add_account(&mut self, account: Account<'a>) {
         self.accounts.insert(*account.get_id(), account);
     }
 
